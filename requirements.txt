@@ -1,0 +1,8 @@
+firebase_admin==6.4.0
+matplotlib==3.8.0
+pandas==2.2.0
+python-decouple==3.8
+python_bcrypt==0.3.2
+Requests==2.31.0
+streamlit==1.31.1
+streamlit_lottie==0.0.5
