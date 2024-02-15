@@ -26,7 +26,7 @@ st.set_page_config(
 )
 
 # Load environment variables
-GMAIL_USER = "myfitness.app2024 @ gmail.com"
+GMAIL_USER = "myfitness.app2024@gmail.com"
 GMAIL_PASSWORD = "tlnslelhrjsdcvsl"
 
 # Database setup
