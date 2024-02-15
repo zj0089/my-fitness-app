@@ -16,10 +16,10 @@ pip install -r requirements.txt
 ```
 - Run the Streamlit app
 ```
-streamlit run Home.py
+streamlit run app.py
 ```
 
 ```
 pip install -r requirements.txt
-streamlit run Home.py
+streamlit run app.py
 ```
