@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 from streamlit_lottie import st_lottie
+import re
 
 # Initialize session state
 if "user" not in st.session_state:
@@ -92,6 +93,19 @@ def generate_reset_token():
     return "".join(random.choices(string.ascii_letters + string.digits, k=20))
 
 
+# Password validation
+def validate_password(password):
+    """
+    Validate password based on criteria:
+    - At least 1 capital letter
+    - At least 1 number
+    - At least one special character
+    - Should be at least 6 characters long
+    """
+    pattern = re.compile(r"^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$")
+    return bool(pattern.match(password))
+
+
 # User registration
 def register_user():
     st.title("Register")
@@ -100,6 +114,12 @@ def register_user():
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
+    # Display password requirements message
+    st.markdown(
+        '<p style="font-size: 10px;">The password should have at least 1 uppercase, 1 lowercase, 1 number, and 1 special character.</p>',
+        unsafe_allow_html=True,
+    )
+
     # Set the range for date of birth
     min_dob = datetime(1900, 1, 1)
     max_dob = datetime.now()
@@ -107,11 +127,17 @@ def register_user():
     dob = st.date_input("Date of Birth", min_value=min_dob, max_value=max_dob)
     gender = st.selectbox("Gender", ["Male", "Female", "Other"])
 
-    fitness_level = st.selectbox(
-        "Fitness Level", ["Beginner", "Intermediate", "Advanced"]
-    )
+    fitness_levels = ["Beginner", "Intermediate", "Advanced"]
+    fitness_level = st.selectbox("Fitness Level", fitness_levels)
 
+    # Validate password only when the Register button is clicked
     if st.button("Register"):
+        if not validate_password(password):
+            st.error(
+                "Invalid password. Please ensure it meets the criteria. The password should have atleast 1 uppercase, 1 lowercase, 1 number, and 1 special character."
+            )
+            return
+
         # Check if the email already exists
         existing_user = c.execute(
             "SELECT * FROM users WHERE email=?", (email,)
@@ -146,7 +172,11 @@ def register_user():
         # Send confirmation email
         send_confirmation_email(email)
 
-        st.success("Registration successful. You can now log in.")
+        # Display success message and redirect to login page
+        st.markdown("Registration successful. You can now [log in](#Login).")
+
+        # Clear the content of the page
+        st.empty()
 
 
 # Function to send confirmation email
@@ -183,33 +213,28 @@ def send_email(to_email, subject, body):
 
 # User login
 def login_user():
-    st.title("User Login")
-
     # Check if a user is already logged in
-    if "user" in st.session_state and st.session_state.user is not None:
-        st.info("You are already logged in.")
+    if st.session_state.user is not None:
+        st.title("User Logged In")
+        st.write("You are already logged in.")
+        st.button("Logout", on_click=logout_user)
         return st.session_state.user
 
+    st.title("User Login")
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        result = c.execute(
-            """
-            SELECT * FROM users WHERE email=?
-        """,
-            (email,),
-        ).fetchone()
+        result = c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
 
         if result:
-            hashed_password = result[4]  # Fetch the hashed password from the database
+            hashed_password = result[4]
             if bcrypt.checkpw(
                 password.encode("utf-8"), hashed_password.encode("utf-8")
             ):
                 st.success("Login successful.")
-                st.session_state.user = (
-                    result  # Set the user attribute in session state
-                )
+                st.session_state.user = result
+                st.experimental_rerun()  # Force a rerun to update the UI
                 return result
             else:
                 st.error("Invalid email or password.")
@@ -248,6 +273,7 @@ delete_user_contacts_sql = "DELETE FROM contacts WHERE user_id = ?;"
 delete_user_sql = "DELETE FROM users WHERE id = ?;"
 
 
+# Delete user
 def delete_user():
     user_id = st.session_state.user[0] if "user" in st.session_state else None
 
@@ -481,15 +507,7 @@ def main():
     st.sidebar.title("My Fitness App")
     page = st.sidebar.radio(
         "Select Page",
-        [
-            "Home",
-            "Workouts",
-            "Register",
-            "Login",
-            "Profile",
-            "Dashboard",
-            "Contact Us",
-        ],
+        ["Home", "Workouts", "Register", "Login", "Profile", "Dashboard", "Contact Us"],
     )
 
     if page == "Home":
@@ -505,8 +523,7 @@ def main():
     elif page == "Login":
         user = login_user()
         forgot_password()
-        if user:
-            st.session_state.user = user
+        return
     elif page == "Profile":
         if st.session_state.user and check_user_exists(st.session_state.user[0]):
             view_profile(st.session_state.user)  # Pass the user to view_profile
