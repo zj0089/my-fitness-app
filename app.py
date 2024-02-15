@@ -1,35 +1,34 @@
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import streamlit as st
 import sqlite3
+import bcrypt
+from datetime import datetime
 import hashlib
 import random
 import string
 import smtplib
-import time
-from datetime import datetime
 from decouple import config
-import bcrypt
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import matplotlib.pyplot as plt
 import pandas as pd
-import streamlit as st
+import requests
+from streamlit_lottie import st_lottie
+
+# Initialize session state
+if "user" not in st.session_state:
+    st.session_state.user = None
 
 st.set_page_config(
     page_title="My Fitness App",
     page_icon="💪",
 )
 
-# Initialize session state
-if "user" not in st.session_state:
-    st.session_state.user = None
-if "page_index" not in st.session_state:
-    st.session_state.page_index = 0
-
 # Load environment variables
 GMAIL_USER = config("GMAIL_USER", default="")
 GMAIL_PASSWORD = config("GMAIL_PASSWORD", default="")
 
 # Database setup
-conn = sqlite3.connect("my_fitness_app.db", check_same_thread=False)
+conn = sqlite3.connect("my_fitness_app.db")
 c = conn.cursor()
 
 # Create users table
@@ -396,12 +395,12 @@ def workouts_main():
 
     # List of workout options with corresponding YouTube links
     workouts = {
-        "20 minutes HIIT Cardio": "https://youtu.be/FeR-4_Opt-g?si=0-nHadML4Znr_Bmx",
-        "28 minutes Full Body Stretch": "https://youtu.be/CY6QP4ofwx4?si=e164Oouj2_i7m_Ej",
-        "30 minutes Full Body Strength Workout": "https://youtu.be/tj0o8aH9vJw?si=KaQmNDyThxfwN6ug",
-        "30 minutes Full Body Resistance Training with Dumbbells": "https://youtu.be/t3kL5gswXAc?si=mPKMdkyZcyldShCS",
-        "Workout 2": "https://www.youtube.com/watch?v=example2",
-        "Workout 3": "https://www.youtube.com/watch?v=example3",
+        "20 minute HIIT Cardio": "https://youtu.be/FeR-4_Opt-g?si=0-nHadML4Znr_Bmx",
+        "28 minute Full Body Stretch": "https://youtu.be/CY6QP4ofwx4?si=e164Oouj2_i7m_Ej",
+        "30 minute Full Body Strength Workout": "https://youtu.be/tj0o8aH9vJw?si=KaQmNDyThxfwN6ug",
+        "30 minute Full Body Resistance Training with Dumbbells": "https://youtu.be/t3kL5gswXAc?si=mPKMdkyZcyldShCS",
+        "10 minute Daily Aa Workout": "https://youtu.be/P3tx4koLhW4?si=QlsH-a0SyBz2TtLM",
+        "10 minute Morning Workout (No Equipment)": "https://youtu.be/3sEeVJEXTfY?si=8q8oqHIKGgGPSjWd",
     }
 
     # Dropdown to select a workout
@@ -444,6 +443,19 @@ def contact_us():
 def check_user_exists(user_id):
     result = c.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
     return result is not None
+
+
+def load_lottieurl(url):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+
+# Load animation
+lottie_coding = load_lottieurl(
+    "https://lottie.host/59cf70ce-2625-417b-bf90-326b3d3ef9aa/ucKwhMc9p2.json"
+)
 
 
 # Main app
