@@ -14,6 +14,7 @@ import requests
 import streamlit as st
 from decouple import config
 from streamlit_lottie import st_lottie
+import re
 
 # Initialize session state
 if "user" not in st.session_state:
@@ -93,6 +94,19 @@ def generate_reset_token():
     return "".join(random.choices(string.ascii_letters + string.digits, k=20))
 
 
+# Password validation
+def validate_password(password):
+    """
+    Validate password based on criteria:
+    - At least 1 capital letter
+    - At least 1 number
+    - At least one special character
+    - Should be at least 6 characters long
+    """
+    pattern = re.compile(r"^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$")
+    return bool(pattern.match(password))
+
+
 # User registration
 def register_user():
     st.title("Register")
@@ -101,6 +115,12 @@ def register_user():
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
+    # Display password requirements message
+    st.markdown(
+        '<p style="font-size: 10px;">The password should have at least 1 uppercase, 1 lowercase, 1 number, and 1 special character.</p>',
+        unsafe_allow_html=True,
+    )
+
     # Set the range for date of birth
     min_dob = datetime(1900, 1, 1)
     max_dob = datetime.now()
@@ -108,11 +128,17 @@ def register_user():
     dob = st.date_input("Date of Birth", min_value=min_dob, max_value=max_dob)
     gender = st.selectbox("Gender", ["Male", "Female", "Other"])
 
-    fitness_level = st.selectbox(
-        "Fitness Level", ["Beginner", "Intermediate", "Advanced"]
-    )
+    fitness_levels = ["Beginner", "Intermediate", "Advanced"]
+    fitness_level = st.selectbox("Fitness Level", fitness_levels)
 
+    # Validate password only when the Register button is clicked
     if st.button("Register"):
+        if not validate_password(password):
+            st.error(
+                "Invalid password. Please ensure it meets the criteria. The password should have atleast 1 uppercase, 1 lowercase, 1 number, and 1 special character."
+            )
+            return
+
         # Check if the email already exists
         existing_user = c.execute(
             "SELECT * FROM users WHERE email=?", (email,)
@@ -147,7 +173,11 @@ def register_user():
         # Send confirmation email
         send_confirmation_email(email)
 
-        st.success("Registration successful. You can now log in.")
+        # Display success message and redirect to login page
+        st.markdown("Registration successful. You can now [log in](#Login).")
+
+        # Clear the content of the page
+        st.empty()
 
 
 # Function to send confirmation email
@@ -184,6 +214,14 @@ def send_email(to_email, subject, body):
 
 # User login
 def login_user(email, password):
+
+    # Check if a user is already logged in
+    if st.session_state.user is not None:
+        st.title("User Logged In")
+        st.write("You are already logged in.")
+        st.button("Logout", on_click=logout_user)
+        return st.session_state.user
+   
     result = c.execute(
         """
         SELECT * FROM users WHERE email=?
@@ -235,20 +273,30 @@ def logout_user():
     st.success("Logged out successfully.")
 
 
-# Function to delete user
+# SQL queries to delete user and associated data
+delete_user_workouts_sql = "DELETE FROM workouts WHERE user_id = ?;"
+delete_user_contacts_sql = "DELETE FROM contacts WHERE user_id = ?;"
+delete_user_sql = "DELETE FROM users WHERE id = ?;"
+
+
+# Delete user
 def delete_user():
     if st.session_state.user:
         print(st.session_state)
         user_id = st.session_state.user[0]
         try:
+            print(f"Deleting user ID: {user_id}")
+
             # Delete user's workouts
-            c.execute("DELETE FROM workouts WHERE user_id=?", (user_id,))
+            c.execute(delete_user_workouts_sql, (user_id,))
+            conn.commit()
 
             # Delete user's contacts
-            c.execute("DELETE FROM contacts WHERE user_id=?", (user_id,))
+            c.execute(delete_user_contacts_sql, (user_id,))
+            conn.commit()
 
             # Delete the user
-            c.execute("DELETE FROM users WHERE id=?", (user_id,))
+            c.execute(delete_user_sql, (user_id,))
             conn.commit()
 
             print("User deleted successfully.")
@@ -478,12 +526,16 @@ def main():
 
     if page == "Home":
         st.title("Welcome to My Fitness App")
+        
+        st.subheader("Start Your Fitness Journey Today!")
         st.write(
-            "My Fitness is designed to help users achieve their fitness goals by providing a comprehensive set of features to track workouts, set goals, monitor progress, and access a library of exercise routines. With a user-friendly interface and personalized recommendations, our app aims to make fitness accessible and enjoyable for users of all levels. Whether you're a beginner looking to start a fitness journey or a seasoned athlete aiming to optimize performance, our app has something for everyone."
+            "Embark on a transformative fitness journey with My Fitness App, where your wellness takes center stage. Whether you're a seasoned fitness enthusiast or just starting out, our app is designed to empower you at every step."
         )
         if st.button("Go to Login"):
             st.session_state.page_index = 3
             st.rerun()
+        st_lottie(lottie_coding, height=300, key="coding")
+
     elif page == "Register":
         register_user()
     elif page == "Login":
