@@ -213,6 +213,14 @@ def send_email(to_email, subject, body):
 
 # User login
 def login_user(email, password):
+
+    # Check if a user is already logged in
+    if st.session_state.user is not None:
+        st.title("User Logged In")
+        st.write("You are already logged in.")
+        st.button("Logout", on_click=logout_user)
+        return st.session_state.user
+   
     result = c.execute(
         """
         SELECT * FROM users WHERE email=?
@@ -435,12 +443,6 @@ def workouts_main():
 
     # List of workout options with corresponding YouTube links
     workouts = {
-        "20 minute HIIT Cardio": "https://youtu.be/FeR-4_Opt-g?si=0-nHadML4Znr_Bmx",
-        "28 minute Full Body Stretch": "https://youtu.be/CY6QP4ofwx4?si=e164Oouj2_i7m_Ej",
-        "30 minute Full Body Strength Workout": "https://youtu.be/tj0o8aH9vJw?si=KaQmNDyThxfwN6ug",
-        "30 minute Full Body Resistance Training with Dumbbells": "https://youtu.be/t3kL5gswXAc?si=mPKMdkyZcyldShCS",
-        "10 minute Daily Aa Workout": "https://youtu.be/P3tx4koLhW4?si=QlsH-a0SyBz2TtLM",
-        "10 minute Morning Workout (No Equipment)": "https://youtu.be/3sEeVJEXTfY?si=8q8oqHIKGgGPSjWd",
         "20 minute HIIT Cardio": "https://youtu.be/FeR-4_Opt-g?si=0-nHadML4Znr_Bmx",
         "28 minute Full Body Stretch": "https://youtu.be/CY6QP4ofwx4?si=e164Oouj2_i7m_Ej",
         "30 minute Full Body Strength Workout": "https://youtu.be/tj0o8aH9vJw?si=KaQmNDyThxfwN6ug",
