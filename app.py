@@ -19,6 +19,8 @@ import re
 # Initialize session state
 if "user" not in st.session_state:
     st.session_state.user = None
+if "page_index" not in st.session_state:
+    st.session_state.page_index = 0
 
 st.set_page_config(
     page_title="My Fitness App",
@@ -214,14 +216,13 @@ def send_email(to_email, subject, body):
 
 # User login
 def login_user(email, password):
-
     # Check if a user is already logged in
     if st.session_state.user is not None:
         st.title("User Logged In")
         st.write("You are already logged in.")
         st.button("Logout", on_click=logout_user)
         return st.session_state.user
-   
+
     result = c.execute(
         """
         SELECT * FROM users WHERE email=?
@@ -526,7 +527,7 @@ def main():
 
     if page == "Home":
         st.title("Welcome to My Fitness App")
-        
+
         st.subheader("Start Your Fitness Journey Today!")
         st.write(
             "Embark on a transformative fitness journey with My Fitness App, where your wellness takes center stage. Whether you're a seasoned fitness enthusiast or just starting out, our app is designed to empower you at every step."
