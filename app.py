@@ -1,12 +1,15 @@
+import base64
 import hashlib
+import os
 import random
+import re
 import smtplib
 import sqlite3
 import string
+import time
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import time
 import bcrypt
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -14,7 +17,6 @@ import requests
 import streamlit as st
 from decouple import config
 from streamlit_lottie import st_lottie
-import re
 
 # Initialize session state
 if "user" not in st.session_state:
@@ -164,7 +166,9 @@ def register_user():
                     first_name,
                     last_name,
                     email,
-                    hashed_password.decode("utf-8"),  # Decode to store as a plain string
+                    hashed_password.decode(
+                        "utf-8"
+                    ),  # Decode to store as a plain string
                     gender,
                     dob,
                     fitness_level,
@@ -180,7 +184,9 @@ def register_user():
             st.markdown("Registration successful.")
 
     elif st.session_state.user is not None:
-        st.warning("You are currently logged in. Please log out before creating a new account.")
+        st.warning(
+            "You are currently logged in. Please log out before creating a new account."
+        )
 
 
 # Function to send confirmation email
@@ -239,6 +245,9 @@ def login_user(email, password):
             msg.success("Login successful.")
             time.sleep(1)
             msg.empty()
+
+            # Update the UI directly to navigate to the desired page
+            st.session_state.page_index = 4
             return True
         else:
             st.error("Invalid email or password.")
@@ -250,23 +259,52 @@ def login_user(email, password):
 
 # Forgot Password
 def forgot_password():
-    email = st.text_input("Email", key="forgot_password_email")
-    if st.button("Send Reset Email"):
+    reset_password_email = st.text_input("Email", key="forgot_password_email")
+
+    if st.button("Enter Email"):
         existing_user = c.execute(
-            "SELECT * FROM users WHERE email=?", (email,)
+            "SELECT * FROM users WHERE email=?", (reset_password_email,)
         ).fetchone()
+
         if existing_user:
-            reset_token = generate_reset_token()
-            c.execute(
-                """
-                UPDATE users SET reset_token=? WHERE email=?
-                """,
-                (reset_token, email),
-            )
-            conn.commit()
-            st.success("Reset email sent. Check your inbox for further instructions.")
+            st.session_state.reset_password_email = reset_password_email
+            st.session_state.reset_password_stage = "change_password"
         else:
             st.warning("Invalid email. Please try again.")
+
+    if (
+        "reset_password_stage" in st.session_state
+        and st.session_state.reset_password_stage == "change_password"
+    ):
+        st.markdown("### Change Password")
+
+        new_password = st.text_input("New Password", type="password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+
+        if st.button("Reset Password"):
+            if new_password == confirm_password:
+                # Reset the password in the database
+                hashed_password = bcrypt.hashpw(
+                    new_password.encode("utf-8"), bcrypt.gensalt()
+                )
+                c.execute(
+                    "UPDATE users SET password=? WHERE email=?",
+                    (
+                        hashed_password.decode("utf-8"),
+                        st.session_state.reset_password_email,
+                    ),
+                )
+                conn.commit()
+                st.success(
+                    "Password reset successful. You can now log in with your new password."
+                )
+
+                # Clear session state and form after a short delay
+                st.session_state.reset_password_email = None
+                st.session_state.reset_password_stage = None
+                time.sleep(2)  # Adjust the duration as needed
+            else:
+                st.warning("Passwords do not match. Please try again.")
 
 
 # Logout function
@@ -566,6 +604,24 @@ def main():
         if st.session_state.user and check_user_exists(st.session_state.user[0]):
             add_workout(st.session_state.user)
             display_visualization(st.session_state.user)
+        
+            st.subheader("Share now!")
+
+            # Facebook and Instagram image and link
+            image_path1 = "static/fb.png"
+            image_path2 = "static/insta.png"
+
+            # Load images and encode them to base64
+            image1 = base64.b64encode(open(image_path1, "rb").read()).decode()
+            image2 = base64.b64encode(open(image_path2, "rb").read()).decode()
+
+            # Create two columns
+            col1, col2 = st.columns((1, 12))
+
+            # Add linked images to columns
+            col1.markdown(f'<a href="https://facebook.com" target="_blank"><img src="data:image/png;base64,{image1}" alt="Image 1" style="width: 50px; height: auto;"></a>', unsafe_allow_html=True)
+            col2.markdown(f'<a href="https://instagram.com" target="_blank"><img src="data:image/png;base64,{image2}" alt="Image 2" style="width: 50px; height: auto;"></a>', unsafe_allow_html=True)
+
         else:
             st.warning("Please log in to access the dashboard.")
     elif page == "Contact Us":
