@@ -212,53 +212,50 @@ def send_email(to_email, subject, body):
 
 
 # User login
-def login_user():
-    # Check if a user is already logged in
-    if st.session_state.user is not None:
-        st.title("User Logged In")
-        st.write("You are already logged in.")
-        st.button("Logout", on_click=logout_user)
-        return st.session_state.user
+def login_user(email, password):
+    result = c.execute(
+        """
+        SELECT * FROM users WHERE email=?
+    """,
+        (email,),
+    ).fetchone()
 
-    st.title("User Login")
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        result = c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
-
-        if result:
-            hashed_password = result[4]
-            if bcrypt.checkpw(
-                password.encode("utf-8"), hashed_password.encode("utf-8")
-            ):
-                st.success("Login successful.")
-                st.session_state.user = result
-                st.experimental_rerun()  # Force a rerun to update the UI
-                return result
-            else:
-                st.error("Invalid email or password.")
-                return None
+    if result:
+        hashed_password = result[4]  # Fetch the hashed password from the database
+        if bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8")):
+            st.session_state.user = result
+            msg = st.empty()
+            msg.success("Login successful.")
+            time.sleep(1)
+            msg.empty()
+            return True
         else:
             st.error("Invalid email or password.")
             return None
+    else:
+        st.error("Invalid email or password.")
+        return None
 
 
 # Forgot Password
 def forgot_password():
-    st.title("Forgot Password")
     email = st.text_input("Email", key="forgot_password_email")
-
     if st.button("Send Reset Email"):
-        reset_token = generate_reset_token()
-        c.execute(
-            """
-            UPDATE users SET reset_token=? WHERE email=?
-        """,
-            (reset_token, email),
-        )
-        conn.commit()
-        st.success("Reset email sent. Check your inbox for further instructions.")
+        existing_user = c.execute(
+            "SELECT * FROM users WHERE email=?", (email,)
+        ).fetchone()
+        if existing_user:
+            reset_token = generate_reset_token()
+            c.execute(
+                """
+                UPDATE users SET reset_token=? WHERE email=?
+                """,
+                (reset_token, email),
+            )
+            conn.commit()
+            st.success("Reset email sent. Check your inbox for further instructions.")
+        else:
+            st.warning("Invalid email. Please try again.")
 
 
 # Logout function
@@ -275,9 +272,9 @@ delete_user_sql = "DELETE FROM users WHERE id = ?;"
 
 # Delete user
 def delete_user():
-    user_id = st.session_state.user[0] if "user" in st.session_state else None
-
-    if user_id:
+    if st.session_state.user:
+        print(st.session_state)
+        user_id = st.session_state.user[0]
         try:
             print(f"Deleting user ID: {user_id}")
 
@@ -296,8 +293,20 @@ def delete_user():
             print("User deleted successfully.")
             st.success("User deleted successfully.")
 
-            # Redirect to the login page
-            st.experimental_set_query_params(page="Login")
+            # Clear session state
+            st.session_state.user = None
+            print(st.session_state)
+
+            # Display a message and redirect to the login page
+            st.warning("Your account has been deleted.")
+
+            # Add a delay to allow the message to be displayed
+            time.sleep(2)
+
+            # Redirect to login page
+            st.session_state.page = "Login"
+            # st.rerun()
+
         except Exception as e:
             print(f"Error deleting user: {e}")
             st.error("An error occurred while deleting the user.")
@@ -316,26 +325,13 @@ def view_profile(user):
         st.write(f"Date of Birth: {user[6]}")
         st.write(f"Fitness Level: {user[7]}")
 
-        if st.button("Delete Account"):
+        delete_btn = st.button("Delete Account")
+
+        if delete_btn:
+            print("DELETE BUTTON CLICKED")
             # Display a confirmation dialog
-            confirmation = st.warning("Are you sure you want to delete your account?")
-            if confirmation.button("Yes, delete my account"):
-                try:
-                    # Delete user's workouts
-                    c.execute(delete_user_workouts_sql, (user[0],))
-
-                    # Delete user's contacts
-                    c.execute(delete_user_contacts_sql, (user[0],))
-
-                    # Delete the user
-                    c.execute(delete_user_sql, (user[0],))
-                    conn.commit()
-
-                    st.success("User deleted successfully.")
-                    st.experimental_rerun()  # This might cause issues with the rerun, depending on your Streamlit version
-                except Exception as e:
-                    print(f"Error deleting user: {e}")
-                    st.error("An error occurred while deleting the user.")
+            st.warning("Are you sure you want to delete your account?")
+            st.button("Yes, delete my account", on_click=delete_user)
     else:
         st.warning("Please log in to view your profile.")
 
@@ -445,6 +441,12 @@ def workouts_main():
         "30 minute Full Body Resistance Training with Dumbbells": "https://youtu.be/t3kL5gswXAc?si=mPKMdkyZcyldShCS",
         "10 minute Daily Aa Workout": "https://youtu.be/P3tx4koLhW4?si=QlsH-a0SyBz2TtLM",
         "10 minute Morning Workout (No Equipment)": "https://youtu.be/3sEeVJEXTfY?si=8q8oqHIKGgGPSjWd",
+        "20 minute HIIT Cardio": "https://youtu.be/FeR-4_Opt-g?si=0-nHadML4Znr_Bmx",
+        "28 minute Full Body Stretch": "https://youtu.be/CY6QP4ofwx4?si=e164Oouj2_i7m_Ej",
+        "30 minute Full Body Strength Workout": "https://youtu.be/tj0o8aH9vJw?si=KaQmNDyThxfwN6ug",
+        "30 minute Full Body Resistance Training with Dumbbells": "https://youtu.be/t3kL5gswXAc?si=mPKMdkyZcyldShCS",
+        "10 minute Daily Aa Workout": "https://youtu.be/P3tx4koLhW4?si=QlsH-a0SyBz2TtLM",
+        "10 minute Morning Workout (No Equipment)": "https://youtu.be/3sEeVJEXTfY?si=8q8oqHIKGgGPSjWd",
     }
 
     # Dropdown to select a workout
@@ -507,23 +509,49 @@ def main():
     st.sidebar.title("My Fitness App")
     page = st.sidebar.radio(
         "Select Page",
-        ["Home", "Workouts", "Register", "Login", "Profile", "Dashboard", "Contact Us"],
+        [
+            "Home",
+            "Workouts",
+            "Register",
+            "Login",
+            "Profile",
+            "Dashboard",
+            "Contact Us",
+        ],
+        index=st.session_state.page_index,
     )
 
     if page == "Home":
         st.title("Welcome to My Fitness App")
+        
         st.subheader("Start Your Fitness Journey Today!")
         st.write(
             "Embark on a transformative fitness journey with My Fitness App, where your wellness takes center stage. Whether you're a seasoned fitness enthusiast or just starting out, our app is designed to empower you at every step."
         )
+        if st.button("Go to Login"):
+            st.session_state.page_index = 3
+            st.rerun()
         st_lottie(lottie_coding, height=300, key="coding")
 
     elif page == "Register":
         register_user()
     elif page == "Login":
-        user = login_user()
-        forgot_password()
-        return
+        placeholder = st.empty()
+        with placeholder.container():
+            if st.session_state.user is None:
+                st.title("User Login")
+                email = st.text_input("Email")
+                password = st.text_input("Password", type="password")
+                login_btn = st.button(
+                    "Login", type="primary", on_click=login_user, args=(email, password)
+                )
+                st.title("Forgot Password")
+                forgot_password()
+
+            elif "user" in st.session_state:
+                placeholder.empty()
+                placeholder.info("You are logged in.")
+
     elif page == "Profile":
         if st.session_state.user and check_user_exists(st.session_state.user[0]):
             view_profile(st.session_state.user)  # Pass the user to view_profile
@@ -535,7 +563,6 @@ def main():
             display_visualization(st.session_state.user)
         else:
             st.warning("Please log in to access the dashboard.")
-            page = "Login"
     elif page == "Contact Us":
         contact_us()
     elif page == "Workouts":
