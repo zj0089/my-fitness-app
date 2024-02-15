@@ -1,32 +1,35 @@
-import streamlit as st
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import sqlite3
-import bcrypt
-from datetime import datetime
 import hashlib
 import random
 import string
 import smtplib
+import time
+from datetime import datetime
 from decouple import config
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import bcrypt
 import matplotlib.pyplot as plt
 import pandas as pd
-
-# Initialize session state
-if "user" not in st.session_state:
-    st.session_state.user = None
+import streamlit as st
 
 st.set_page_config(
     page_title="My Fitness App",
     page_icon="💪",
 )
 
+# Initialize session state
+if "user" not in st.session_state:
+    st.session_state.user = None
+if "page_index" not in st.session_state:
+    st.session_state.page_index = 0
+
 # Load environment variables
 GMAIL_USER = config("GMAIL_USER", default="")
 GMAIL_PASSWORD = config("GMAIL_PASSWORD", default="")
 
 # Database setup
-conn = sqlite3.connect("my_fitness_app.db")
+conn = sqlite3.connect("my_fitness_app.db", check_same_thread=False)
 c = conn.cursor()
 
 # Create users table
@@ -180,58 +183,50 @@ def send_email(to_email, subject, body):
 
 
 # User login
-def login_user():
-    st.title("User Login")
+def login_user(email, password):
+    result = c.execute(
+        """
+        SELECT * FROM users WHERE email=?
+    """,
+        (email,),
+    ).fetchone()
 
-    # Check if a user is already logged in
-    if "user" in st.session_state and st.session_state.user is not None:
-        st.info("You are already logged in.")
-        return st.session_state.user
-
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        result = c.execute(
-            """
-            SELECT * FROM users WHERE email=?
-        """,
-            (email,),
-        ).fetchone()
-
-        if result:
-            hashed_password = result[4]  # Fetch the hashed password from the database
-            if bcrypt.checkpw(
-                password.encode("utf-8"), hashed_password.encode("utf-8")
-            ):
-                st.success("Login successful.")
-                st.session_state.user = (
-                    result  # Set the user attribute in session state
-                )
-                return result
-            else:
-                st.error("Invalid email or password.")
-                return None
+    if result:
+        hashed_password = result[4]  # Fetch the hashed password from the database
+        if bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8")):
+            st.session_state.user = result
+            msg = st.empty()
+            msg.success("Login successful.")
+            time.sleep(1)
+            msg.empty()
+            return True
         else:
             st.error("Invalid email or password.")
             return None
+    else:
+        st.error("Invalid email or password.")
+        return None
 
 
 # Forgot Password
 def forgot_password():
-    st.title("Forgot Password")
     email = st.text_input("Email", key="forgot_password_email")
-
     if st.button("Send Reset Email"):
-        reset_token = generate_reset_token()
-        c.execute(
-            """
-            UPDATE users SET reset_token=? WHERE email=?
-        """,
-            (reset_token, email),
-        )
-        conn.commit()
-        st.success("Reset email sent. Check your inbox for further instructions.")
+        existing_user = c.execute(
+            "SELECT * FROM users WHERE email=?", (email,)
+        ).fetchone()
+        if existing_user:
+            reset_token = generate_reset_token()
+            c.execute(
+                """
+                UPDATE users SET reset_token=? WHERE email=?
+                """,
+                (reset_token, email),
+            )
+            conn.commit()
+            st.success("Reset email sent. Check your inbox for further instructions.")
+        else:
+            st.warning("Invalid email. Please try again.")
 
 
 # Logout function
@@ -243,6 +238,7 @@ def logout_user():
 # Function to delete user
 def delete_user():
     if st.session_state.user:
+        print(st.session_state)
         user_id = st.session_state.user[0]
         try:
             # Delete user's workouts
@@ -259,36 +255,24 @@ def delete_user():
             st.success("User deleted successfully.")
 
             # Clear session state
-            st.session_state.clear()
+            st.session_state.user = None
+            print(st.session_state)
 
             # Display a message and redirect to the login page
-            st.warning("Your account has been deleted. Redirecting to login page...")
+            st.warning("Your account has been deleted.")
 
             # Add a delay to allow the message to be displayed
-            st.experimental_sleep(3)
+            time.sleep(2)
 
             # Redirect to login page
-            st.experimental_rerun()
+            st.session_state.page = "Login"
+            # st.rerun()
+
         except Exception as e:
             print(f"Error deleting user: {e}")
             st.error("An error occurred while deleting the user.")
     else:
         st.warning("Please log in to delete your account.")
-
-
-# SQL query to delete user and associated data
-delete_user_sql = """
--- Assuming user_id is the ID of the user who wants to delete their profile
-
--- Delete user's workouts
-DELETE FROM workouts WHERE user_id = user_id;
-
--- Delete user's contacts
-DELETE FROM contacts WHERE user_id = user_id;
-
--- Delete the user
-DELETE FROM users WHERE id = user_id;
-"""
 
 
 # User profile
@@ -302,16 +286,13 @@ def view_profile(user):
         st.write(f"Date of Birth: {user[6]}")
         st.write(f"Fitness Level: {user[7]}")
 
-        if st.button("Delete Account"):
-            # Display a confirmation dialog
-            confirmation = st.warning("Are you sure you want to delete your account?")
-            if confirmation.button("Yes, delete my account"):
-                # Execute SQL query to delete user and associated data
-                c.execute(delete_user_sql, {"user_id": user[0]})
-                conn.commit()
+        delete_btn = st.button("Delete Account")
 
-                st.success("User deleted successfully.")
-                st.experimental_rerun()  # This might cause issues with the rerun, depending on your Streamlit version
+        if delete_btn:
+            print("DELETE BUTTON CLICKED")
+            # Display a confirmation dialog
+            st.warning("Are you sure you want to delete your account?")
+            st.button("Yes, delete my account", on_click=delete_user)
     else:
         st.warning("Please log in to view your profile.")
 
@@ -479,17 +460,36 @@ def main():
             "Dashboard",
             "Contact Us",
         ],
+        index=st.session_state.page_index,
     )
 
     if page == "Home":
         st.title("Welcome to My Fitness App")
+        st.write(
+            "My Fitness is designed to help users achieve their fitness goals by providing a comprehensive set of features to track workouts, set goals, monitor progress, and access a library of exercise routines. With a user-friendly interface and personalized recommendations, our app aims to make fitness accessible and enjoyable for users of all levels. Whether you're a beginner looking to start a fitness journey or a seasoned athlete aiming to optimize performance, our app has something for everyone."
+        )
+        if st.button("Go to Login"):
+            st.session_state.page_index = 3
+            st.rerun()
     elif page == "Register":
         register_user()
     elif page == "Login":
-        user = login_user()
-        forgot_password()
-        if user:
-            st.session_state.user = user
+        placeholder = st.empty()
+        with placeholder.container():
+            if st.session_state.user is None:
+                st.title("User Login")
+                email = st.text_input("Email")
+                password = st.text_input("Password", type="password")
+                login_btn = st.button(
+                    "Login", type="primary", on_click=login_user, args=(email, password)
+                )
+                st.title("Forgot Password")
+                forgot_password()
+
+            elif "user" in st.session_state:
+                placeholder.empty()
+                placeholder.info("You are logged in.")
+
     elif page == "Profile":
         if st.session_state.user and check_user_exists(st.session_state.user[0]):
             view_profile(st.session_state.user)  # Pass the user to view_profile
@@ -501,7 +501,6 @@ def main():
             display_visualization(st.session_state.user)
         else:
             st.warning("Please log in to access the dashboard.")
-            page = "Login"
     elif page == "Contact Us":
         contact_us()
     elif page == "Workouts":
