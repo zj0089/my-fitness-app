@@ -27,7 +27,7 @@ st.set_page_config(
     page_icon="💪",
 )
 
-# Load environment variables
+# Email login
 GMAIL_USER = "myfitness.app2024@gmail.com"
 GMAIL_PASSWORD = "tlnslelhrjsdcvsl"
 
