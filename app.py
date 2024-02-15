@@ -1,17 +1,18 @@
-import streamlit as st
-import sqlite3
-import bcrypt
-from datetime import datetime
 import hashlib
 import random
-import string
 import smtplib
-from decouple import config
-from email.mime.text import MIMEText
+import sqlite3
+import string
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+import bcrypt
 import matplotlib.pyplot as plt
 import pandas as pd
 import requests
+import streamlit as st
+from decouple import config
 from streamlit_lottie import st_lottie
 
 # Initialize session state
@@ -24,8 +25,8 @@ st.set_page_config(
 )
 
 # Load environment variables
-GMAIL_USER = config("GMAIL_USER", default="")
-GMAIL_PASSWORD = config("GMAIL_PASSWORD", default="")
+GMAIL_USER = "myfitness.app2024 @ gmail.com"
+GMAIL_PASSWORD = "tlnslelhrjsdcvsl"
 
 # Database setup
 conn = sqlite3.connect("my_fitness_app.db")
