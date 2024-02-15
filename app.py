@@ -6,7 +6,7 @@ import string
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-
+import time
 import bcrypt
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -32,7 +32,7 @@ GMAIL_USER = "myfitness.app2024@gmail.com"
 GMAIL_PASSWORD = "tlnslelhrjsdcvsl"
 
 # Database setup
-conn = sqlite3.connect("my_fitness_app.db")
+conn = sqlite3.connect("my_fitness_app.db", check_same_thread=False)
 c = conn.cursor()
 
 # Create users table
@@ -111,75 +111,76 @@ def validate_password(password):
 
 # User registration
 def register_user():
-    st.title("Register")
-    first_name = st.text_input("First Name")
-    last_name = st.text_input("Last Name")
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
+    if st.session_state.user is None:
+        st.title("Register")
+        first_name = st.text_input("First Name")
+        last_name = st.text_input("Last Name")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
 
-    # Display password requirements message
-    st.markdown(
-        '<p style="font-size: 10px;">The password should have at least 1 uppercase, 1 lowercase, 1 number, and 1 special character.</p>',
-        unsafe_allow_html=True,
-    )
-
-    # Set the range for date of birth
-    min_dob = datetime(1900, 1, 1)
-    max_dob = datetime.now()
-
-    dob = st.date_input("Date of Birth", min_value=min_dob, max_value=max_dob)
-    gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-
-    fitness_levels = ["Beginner", "Intermediate", "Advanced"]
-    fitness_level = st.selectbox("Fitness Level", fitness_levels)
-
-    # Validate password only when the Register button is clicked
-    if st.button("Register"):
-        if not validate_password(password):
-            st.error(
-                "Invalid password. Please ensure it meets the criteria. The password should have atleast 1 uppercase, 1 lowercase, 1 number, and 1 special character."
-            )
-            return
-
-        # Check if the email already exists
-        existing_user = c.execute(
-            "SELECT * FROM users WHERE email=?", (email,)
-        ).fetchone()
-        if existing_user:
-            st.error(
-                "This email is already registered. Please choose a different email."
-            )
-            return
-
-        # Validate and store the user in the database
-        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-        reset_token = generate_reset_token()
-        c.execute(
-            """
-            INSERT INTO users (first_name, last_name, email, password, gender, date_of_birth, fitness_level, reset_token)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                first_name,
-                last_name,
-                email,
-                hashed_password.decode("utf-8"),  # Decode to store as a plain string
-                gender,
-                dob,
-                fitness_level,
-                reset_token,
-            ),
+        # Display password requirements message
+        st.markdown(
+            '<p style="font-size: 10px;">The password should have at least 1 uppercase, 1 lowercase, 1 number, and 1 special character.</p>',
+            unsafe_allow_html=True,
         )
-        conn.commit()
 
-        # Send confirmation email
-        send_confirmation_email(email)
+        # Set the range for date of birth
+        min_dob = datetime(1900, 1, 1)
+        max_dob = datetime.now()
 
-        # Display success message and redirect to login page
-        st.markdown("Registration successful. You can now [log in](#Login).")
+        dob = st.date_input("Date of Birth", min_value=min_dob, max_value=max_dob)
+        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
 
-        # Clear the content of the page
-        st.empty()
+        fitness_levels = ["Beginner", "Intermediate", "Advanced"]
+        fitness_level = st.selectbox("Fitness Level", fitness_levels)
+
+        # Validate password only when the Register button is clicked
+        if st.button("Register"):
+            if not validate_password(password):
+                st.error(
+                    "Invalid password. Please ensure it meets the criteria. The password should have atleast 1 uppercase, 1 lowercase, 1 number, and 1 special character."
+                )
+                return
+
+            # Check if the email already exists
+            existing_user = c.execute(
+                "SELECT * FROM users WHERE email=?", (email,)
+            ).fetchone()
+            if existing_user:
+                st.error(
+                    "This email is already registered. Please choose a different email."
+                )
+                return
+
+            # Validate and store the user in the database
+            hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+            reset_token = generate_reset_token()
+            c.execute(
+                """
+                INSERT INTO users (first_name, last_name, email, password, gender, date_of_birth, fitness_level, reset_token)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    first_name,
+                    last_name,
+                    email,
+                    hashed_password.decode("utf-8"),  # Decode to store as a plain string
+                    gender,
+                    dob,
+                    fitness_level,
+                    reset_token,
+                ),
+            )
+            conn.commit()
+
+            # Send confirmation email
+            send_confirmation_email(email)
+
+            # Display success message and redirect to login page
+            st.markdown("Registration successful.")
+
+    elif st.session_state.user is not None:
+        st.warning("You are currently logged in. Please log out before creating a new account.")
 
 
 # Function to send confirmation email
