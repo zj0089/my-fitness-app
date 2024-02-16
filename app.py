@@ -543,7 +543,7 @@ def load_lottieurl(url):
 
 # Load animation
 lottie_coding = load_lottieurl(
-    "https://lottie.host/59cf70ce-2625-417b-bf90-326b3d3ef9aa/ucKwhMc9p2.json"
+    "https://lottie.host/bcac9a5b-fe58-4feb-af88-956a738bd873/u3oo2s9ZTK.json"
 )
 
 
@@ -604,7 +604,7 @@ def main():
         if st.session_state.user and check_user_exists(st.session_state.user[0]):
             add_workout(st.session_state.user)
             display_visualization(st.session_state.user)
-        
+
             st.subheader("Share now!")
 
             # Facebook and Instagram image and link
@@ -619,8 +619,14 @@ def main():
             col1, col2 = st.columns((1, 12))
 
             # Add linked images to columns
-            col1.markdown(f'<a href="https://facebook.com" target="_blank"><img src="data:image/png;base64,{image1}" alt="Image 1" style="width: 50px; height: auto;"></a>', unsafe_allow_html=True)
-            col2.markdown(f'<a href="https://instagram.com" target="_blank"><img src="data:image/png;base64,{image2}" alt="Image 2" style="width: 50px; height: auto;"></a>', unsafe_allow_html=True)
+            col1.markdown(
+                f'<a href="https://facebook.com" target="_blank"><img src="data:image/png;base64,{image1}" alt="Image 1" style="width: 50px; height: auto;"></a>',
+                unsafe_allow_html=True,
+            )
+            col2.markdown(
+                f'<a href="https://instagram.com" target="_blank"><img src="data:image/png;base64,{image2}" alt="Image 2" style="width: 50px; height: auto;"></a>',
+                unsafe_allow_html=True,
+            )
 
         else:
             st.warning("Please log in to access the dashboard.")
