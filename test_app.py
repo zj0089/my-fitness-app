@@ -194,15 +194,19 @@ class TestUserRegistration(unittest.TestCase):
         with patch("app.bcrypt.hashpw", return_value=b"hashed_password"):
             # Call the register_user function
             app.register_user(valid_inputs)
-            users = app.get_users()
-            userFound = False
+            print("User registered successfully.", valid_inputs)
             
+            users = app.get_users()
+            print("\nUsers list obtained:", users)
+            
+            userFound = False
             # Check if the user was added to the database
             for user in users:
                 if user[3] == valid_inputs["email"]:
                     userFound = True
                     break
             self.assertEqual(userFound, True)
+            print("\nAssertion passed: User was added to the database.\n Cleaning up....\n")
             
             # If successful, the user should be in the database, so we clean up and delete the user
             app.delete_user(valid_inputs["email"])
