@@ -149,13 +149,9 @@ def insert_user_into_database(
 
 
 # User registration
-def register_user():
+def register_user(data=None):
     if st.session_state.user is None:
         st.title("Register")
-        first_name = st.text_input("First Name")
-        last_name = st.text_input("Last Name")
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
 
         # Display password requirements message
         st.markdown(
@@ -166,12 +162,29 @@ def register_user():
         # Set the range for date of birth
         min_dob = datetime(1900, 1, 1)
         max_dob = datetime.now()
-
-        dob = st.date_input("Date of Birth", min_value=min_dob, max_value=max_dob)
-        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-
         fitness_levels = ["Beginner", "Intermediate", "Advanced"]
-        fitness_level = st.selectbox("Fitness Level", fitness_levels)
+
+        if data is not None:
+            first_name = data.get("first_name")
+            last_name = data.get("Last Name")
+            email = data.get("email")
+            dob = data.get("dob")
+            password = data.get("password")
+            gender = data.get("gender")
+            fitness_level = data.get("fitness_level")
+
+        else:
+            first_name = st.text_input("First Name")
+            last_name = st.text_input("Last Name")
+            password = st.text_input("Password", type="password")
+            email = st.text_input("Email")
+            dob = st.date_input("Date of Birth", min_value=min_dob, max_value=max_dob)
+            gender = st.selectbox("Gender", ["Male", "Female", "Other"]) or data.get(
+                "gender"
+            )
+            fitness_level = st.selectbox("Fitness Level", fitness_levels) or data.get(
+                "fitness_level"
+            )
 
         # Validate password only when the Register button is clicked
         if st.button("Register"):
@@ -179,6 +192,12 @@ def register_user():
                 st.error(
                     "Invalid password. Please ensure it meets the criteria. The password should have atleast 1 uppercase, 1 lowercase, 1 number, and 1 special character."
                 )
+                return
+            if password == "":
+                st.error("Please enter a password.")
+                return
+            if type(dob) is not datetime or dob > max_dob or dob < min_dob:
+                st.error("Please enter a valid date of birth.")
                 return
 
             # Check if the email already exists
@@ -356,9 +375,11 @@ delete_user_sql = "DELETE FROM users WHERE id = ?;"
 
 
 # Delete user
-def delete_user():
+def delete_user(email=None):
+    if email is not None:
+        user = c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        st.session_state.user = user
     if st.session_state.user:
-        print(st.session_state)
         user_id = st.session_state.user[0]
         try:
             print(f"Deleting user ID: {user_id}")
@@ -380,7 +401,6 @@ def delete_user():
 
             # Clear session state
             st.session_state.user = None
-            print(st.session_state)
 
             # Display a message and redirect to the login page
             st.warning("Your account has been deleted.")
@@ -419,6 +439,9 @@ def view_profile(user):
             st.button("Yes, delete my account", on_click=delete_user)
     else:
         st.warning("Please log in to view your profile.")
+
+def get_users():
+    return c.execute("SELECT * FROM users").fetchall()
 
 
 # User dashboard
