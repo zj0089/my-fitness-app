@@ -33,9 +33,11 @@ st.set_page_config(
 GMAIL_USER = "myfitness.app2024@gmail.com"
 GMAIL_PASSWORD = "tlnslelhrjsdcvsl"
 
+
 # Database setup
 conn = sqlite3.connect("my_fitness_app.db", check_same_thread=False)
 c = conn.cursor()
+
 
 # Create users table
 c.execute(
@@ -111,6 +113,41 @@ def validate_password(password):
     return bool(pattern.match(password))
 
 
+# Function to check if user exists
+def check_existing_user(email):
+    return c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+
+
+# Function to insert user into database
+def insert_user_into_database(
+    first_name,
+    last_name,
+    email,
+    hashed_password,
+    gender,
+    dob,
+    fitness_level,
+    reset_token,
+):
+    c.execute(
+        """
+        INSERT INTO users (first_name, last_name, email, password, gender, date_of_birth, fitness_level, reset_token)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            first_name,
+            last_name,
+            email,
+            hashed_password,
+            gender,
+            dob,
+            fitness_level,
+            reset_token,
+        ),
+    )
+    conn.commit()
+
+
 # User registration
 def register_user():
     if st.session_state.user is None:
@@ -145,9 +182,7 @@ def register_user():
                 return
 
             # Check if the email already exists
-            existing_user = c.execute(
-                "SELECT * FROM users WHERE email=?", (email,)
-            ).fetchone()
+            existing_user = check_existing_user(email)
             if existing_user:
                 st.error(
                     "This email is already registered. Please choose a different email."
@@ -157,25 +192,16 @@ def register_user():
             # Validate and store the user in the database
             hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
             reset_token = generate_reset_token()
-            c.execute(
-                """
-                INSERT INTO users (first_name, last_name, email, password, gender, date_of_birth, fitness_level, reset_token)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    first_name,
-                    last_name,
-                    email,
-                    hashed_password.decode(
-                        "utf-8"
-                    ),  # Decode to store as a plain string
-                    gender,
-                    dob,
-                    fitness_level,
-                    reset_token,
-                ),
+            insert_user_into_database(
+                first_name,
+                last_name,
+                email,
+                hashed_password.decode("utf-8"),
+                gender,
+                dob,
+                fitness_level,
+                reset_token,
             )
-            conn.commit()
 
             # Send confirmation email
             send_confirmation_email(email)
@@ -187,6 +213,16 @@ def register_user():
         st.warning(
             "You are currently logged in. Please log out before creating a new account."
         )
+
+
+# Helper function to get text input
+def get_text_input(label, **kwargs):
+    return st.text_input(label, **kwargs)
+
+
+# Helper function to handle button click
+def button_click(label):
+    return st.button(label)
 
 
 # Function to send confirmation email
