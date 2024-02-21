@@ -172,13 +172,13 @@ class TestUserRegistration(unittest.TestCase):
 
         # Set up valid user inputs
         valid_inputs = {
-            "First Name": "John",
-            "Last Name": "Doe",
-            "Email": "john.doe@example.com",
-            "Password": "StrongPass123!",
-            "Date of Birth": datetime(1990, 5, 15),
-            "Gender": "Male",
-            "Fitness Level": "Intermediate",
+            "first_name": "John",
+            "last_name": "Doe",
+            "email": "john.doe@example.com",
+            "password": "StrongPass123!",
+            "dob": datetime(1990, 5, 15),
+            "gender": "Male",
+            "fitness_level": "Intermediate",
         }
 
         # Mock the user input and button click
@@ -193,37 +193,19 @@ class TestUserRegistration(unittest.TestCase):
         # Mock the bcrypt module
         with patch("app.bcrypt.hashpw", return_value=b"hashed_password"):
             # Call the register_user function
-            app.register_user()
-
-        # Check if the expected calls are present in the actual calls (in any order)
-        expected_calls = [
-            mock_st.text_input("First Name", value="John"),
-            mock_st.text_input("Last Name", value="Doe"),
-            mock_st.text_input("Email", value="john.doe@example.com"),
-            mock_st.text_input("Password", type="password", value="StrongPass123!"),
-            mock_st.markdown(
-                '<p style="font-size: 10px;">The password should have at least 1 uppercase, 1 lowercase, 1 number, and 1 special character.</p>',
-                unsafe_allow_html=True,
-            ),
-            mock_st.date_input(
-                "Date of Birth",
-                min_value=datetime(1900, 1, 1),
-                max_value=datetime.now(),
-                value=datetime(1990, 5, 15),
-            ),
-            mock_st.selectbox(
-                "Gender", options=["Male", "Female", "Other"], value="Male"
-            ),
-            mock_st.selectbox(
-                "Fitness Level",
-                options=["Beginner", "Intermediate", "Advanced"],
-                value="Intermediate",
-            ),
-            mock_st.button("Register"),
-            mock_st.markdown("Registration successful."),
-        ]
-
-        mock_st.assert_has_calls(expected_calls, any_order=True)
+            app.register_user(valid_inputs)
+            users = app.get_users()
+            userFound = False
+            
+            # Check if the user was added to the database
+            for user in users:
+                if user[3] == valid_inputs["email"]:
+                    userFound = True
+                    break
+            self.assertEqual(userFound, True)
+            
+            # If successful, the user should be in the database, so we clean up and delete the user
+            app.delete_user(valid_inputs["email"])
 
 
 if __name__ == "__main__":
